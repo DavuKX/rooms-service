@@ -2,7 +2,9 @@ CREATE TABLE servicio
 (
     id            serial4      NOT NULL,
     nombre        varchar(255) NOT NULL,
-    tipo_servicio varchar(255) NOT NULL,
+    tipo varchar(255) NOT NULL,
+    precio         float8       NOT NULL,
+    icon          varchar(255),
     CONSTRAINT servicio_pkey PRIMARY KEY (id)
 );
 

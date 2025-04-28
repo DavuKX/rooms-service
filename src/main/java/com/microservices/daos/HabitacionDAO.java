@@ -9,6 +9,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class HabitacionDAO {
+    private final ServicioDAO servicioDAO;
+    private final ImagenDao imagenDAO;
+
+    public HabitacionDAO() {
+        this.servicioDAO = new ServicioDAO();
+        this.imagenDAO = new ImagenDao();
+    }
 
     public Habitacion save(Habitacion habitacion) throws SQLException, ClassNotFoundException {
         try (Connection connection = DatabaseConnection.getInstance().getConnection()) {
@@ -43,25 +50,6 @@ public class HabitacionDAO {
                     }
                 }
 
-                if (habitacion.getServicios() != null) {
-                    for (String servicioNombre : habitacion.getServicios()) {
-                        PreparedStatement servicioStmt = connection.prepareStatement(
-                                "SELECT id FROM servicio WHERE nombre = ?"
-                        );
-                        servicioStmt.setString(1, servicioNombre);
-                        ResultSet servicioRs = servicioStmt.executeQuery();
-                        if (servicioRs.next()) {
-                            int servicioId = servicioRs.getInt("id");
-                            PreparedStatement habServStmt = connection.prepareStatement(
-                                    "INSERT INTO habitacion_servicios (habitacion_id, servicio_id) VALUES (?, ?)"
-                            );
-                            habServStmt.setInt(1, habitacion.getId());
-                            habServStmt.setInt(2, servicioId);
-                            habServStmt.executeUpdate();
-                        }
-                    }
-                }
-
                 connection.commit();
                 return habitacion;
 
@@ -80,6 +68,8 @@ public class HabitacionDAO {
             List<Habitacion> habitaciones = new ArrayList<>();
             while (rs.next()) {
                 Habitacion habitacion = mapHabitacion(rs);
+                habitacion.setServicios(servicioDAO.obtenerServiciosPorIdHabitacion(habitacion.getId()));
+                habitacion.setImagenes(imagenDAO.obtenerImagenesPorHabitacion(habitacion.getId()));
                 habitaciones.add(habitacion);
             }
             return habitaciones;
@@ -93,7 +83,10 @@ public class HabitacionDAO {
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                return mapHabitacion(rs);
+                Habitacion habitacion = mapHabitacion(rs);
+                habitacion.setServicios(servicioDAO.obtenerServiciosPorIdHabitacion(habitacion.getId()));
+                habitacion.setImagenes(imagenDAO.obtenerImagenesPorHabitacion(habitacion.getId()));
+                return habitacion;
             }
             return null;
         }
@@ -147,6 +140,8 @@ public class HabitacionDAO {
             List<Habitacion> habitaciones = new ArrayList<>();
             while (rs.next()) {
                 Habitacion habitacion = mapHabitacion(rs);
+                habitacion.setServicios(servicioDAO.obtenerServiciosPorIdHabitacion(habitacion.getId()));
+                habitacion.setImagenes(imagenDAO.obtenerImagenesPorHabitacion(habitacion.getId()));
                 habitaciones.add(habitacion);
             }
             return habitaciones;

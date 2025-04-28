@@ -12,7 +12,7 @@ public class Habitacion {
     private int propietarioId;
     private boolean verificada;
     private List<String> imagenes;
-    private List<String> servicios;
+    private List<Servicio> servicios;
 
     public int getId() {
         return id;
@@ -86,11 +86,11 @@ public class Habitacion {
         this.imagenes = imagenes;
     }
 
-    public List<String> getServicios() {
+    public List<Servicio> getServicios() {
         return servicios;
     }
 
-    public void setServicios(List<String> servicios) {
+    public void setServicios(List<Servicio> servicios) {
         this.servicios = servicios;
     }
 }
