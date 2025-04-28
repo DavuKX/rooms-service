@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres:16
+    container_name: rooms-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: rooms_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - rooms-network
+
+  rooms-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rooms-service
+    ports:
+      - "8081:8080"
+    depends_on:
+      - database
+    environment:
+      DB_URL: jdbc:postgresql://database:5432/rooms_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: password
+    networks:
+      - rooms-network
+
+volumes:
+  db_data:
+
+networks:
+  rooms-network:
+    driver: bridge
