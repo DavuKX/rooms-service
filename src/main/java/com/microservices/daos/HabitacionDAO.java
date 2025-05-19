@@ -160,5 +160,23 @@ public class HabitacionDAO {
         habitacion.setVerificada(rs.getBoolean("verificada"));
         return habitacion;
     }
+
+    public boolean update(Habitacion habitacion) throws SQLException, ClassNotFoundException {
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement stmt = connection.prepareStatement(
+                     "UPDATE habitacion SET ciudad = ?, direccion = ?, capacidad = ?, precio_noche = ?, verificada = ? WHERE id = ?"
+             )) {
+
+            stmt.setString(1, habitacion.getCiudad());
+            stmt.setString(2, habitacion.getDireccion());
+            stmt.setInt(3, habitacion.getCapacidad());
+            stmt.setDouble(4, habitacion.getPrecioNoche());
+            stmt.setBoolean(5, habitacion.isVerificada());
+            stmt.setInt(6, habitacion.getId());
+
+            int affectedRows = stmt.executeUpdate();
+            return affectedRows > 0;
+        }
+    }
 }
 

@@ -16,6 +16,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @WebServlet("/api/rooms/*")
 public class HabitacionController extends HttpServlet {
@@ -32,6 +33,7 @@ public class HabitacionController extends HttpServlet {
         resp.setHeader("Access-Control-Allow-Origin", "*");
         resp.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         resp.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        resp.setHeader("Access-Control-Allow-Credentials", "true");
     }
 
     @Override
@@ -141,6 +143,80 @@ public class HabitacionController extends HttpServlet {
                     resp.getWriter().write("{\"error\": \"Habitacion no encontrada\"}");
                 }
             }
+        } catch (SQLException | ClassNotFoundException e) {
+            resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            resp.getWriter().write("{\"error\": \"" + e.getMessage() + "\"}");
+        }
+    }
+
+    @Override
+    protected void doPut(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        setCorsHeaders(resp);
+        resp.setContentType("application/json");
+
+        try {
+            String pathInfo = req.getPathInfo();
+
+            if (pathInfo == null || pathInfo.equals("/")) {
+                resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                resp.getWriter().write("{\"error\": \"Se requiere ID de habitación\"}");
+                return;
+            }
+
+            int id = Integer.parseInt(pathInfo.substring(1));
+            HabitacionDTO updateData = mapper.readValue(req.getInputStream(), HabitacionDTO.class);
+
+            Habitacion existing = habitacionDAO.getById(id);
+            if (existing == null) {
+                resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                resp.getWriter().write("{\"error\": \"Habitación no encontrada\"}");
+                return;
+            }
+
+            if (updateData.getCiudad() != null) {
+                existing.setCiudad(updateData.getCiudad());
+            }
+            if (updateData.getDireccion() != null) {
+                existing.setDireccion(updateData.getDireccion());
+            }
+            if (updateData.getCapacidad() > 0) {
+                existing.setCapacidad(updateData.getCapacidad());
+            }
+            if (updateData.getPrecioNoche() > 0) {
+                existing.setPrecioNoche(updateData.getPrecioNoche());
+            }
+            existing.setVerificada(updateData.isVerificada());
+
+            boolean success = habitacionDAO.update(existing);
+
+            if (success) {
+                Habitacion updated = habitacionDAO.getById(id);
+                HabitacionDTO responseDto = new HabitacionDTO(
+                        updated.getId(),
+                        updated.getCiudad(),
+                        updated.getDireccion(),
+                        updated.getCapacidad(),
+                        (float) updated.getPrecioNoche(),
+                        updated.getDescripcion(),
+                        updated.getServicios().stream()
+                                .filter(s -> "incluido".equals(s.getTipo()))
+                                .collect(Collectors.toList()),
+                        updated.getServicios().stream()
+                                .filter(s -> "adicional".equals(s.getTipo()))
+                                .collect(Collectors.toList()),
+                        updated.getImagenes(),
+                        updated.isVerificada()
+                );
+
+                resp.setStatus(HttpServletResponse.SC_OK);
+                mapper.writeValue(resp.getWriter(), responseDto);
+            } else {
+                resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                resp.getWriter().write("{\"error\": \"No se pudo actualizar la habitación\"}");
+            }
+        } catch (NumberFormatException e) {
+            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            resp.getWriter().write("{\"error\": \"ID de habitación inválido\"}");
         } catch (SQLException | ClassNotFoundException e) {
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             resp.getWriter().write("{\"error\": \"" + e.getMessage() + "\"}");
