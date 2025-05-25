@@ -1,4 +1,4 @@
-package com.microservices.dtos;
+package com.microservices.dto;
 
 import com.microservices.models.Servicio;
 

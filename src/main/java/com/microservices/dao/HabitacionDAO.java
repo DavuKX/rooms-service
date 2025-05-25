@@ -1,4 +1,4 @@
-package com.microservices.daos;
+package com.microservices.dao;
 
 import com.microservices.config.DatabaseConnection;
 import com.microservices.models.Habitacion;
@@ -7,6 +7,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 public class HabitacionDAO {
     private final ServicioDAO servicioDAO;
@@ -92,48 +94,60 @@ public class HabitacionDAO {
         }
     }
 
-    public List<Habitacion> search(HttpServletRequest req) throws SQLException, ClassNotFoundException {
-        String ciudad = req.getParameter("ciudad");
-        String precioMin = req.getParameter("precio_min");
-        String precioMax = req.getParameter("precio_max");
-        String capacidad = req.getParameter("capacidad");
-        String servicios = req.getParameter("servicios");
+    public List<Habitacion> search(Map<String, String[]> params) throws SQLException, ClassNotFoundException {
+        String ciudad = params.get("ciudad") != null ? params.get("ciudad")[0] : null;
+        String precioMin = params.get("precioMin") != null ? params.get("precioMin")[0] : null;
+        String precioMax = params.get("precioMax") != null ? params.get("precioMax")[0] : null;
+        String capacidad = params.get("capacidad") != null ? params.get("capacidad")[0] : null;
+        String servicios = params.get("servicios") != null ? params.get("servicios")[0] : null;
+        String verificada = params.get("verificada") != null ? params.get("verificada")[0] : null;
 
         StringBuilder sql = new StringBuilder("SELECT DISTINCT h.* FROM habitacion h LEFT JOIN habitacion_servicios hs ON h.id = hs.habitacion_id WHERE 1=1 ");
-        List<Object> params = new ArrayList<>();
+        List<Object> parameters = new ArrayList<>();
 
         if (ciudad != null) {
             sql.append("AND h.ciudad = ? ");
-            params.add(ciudad);
+            parameters.add(ciudad);
         }
+
         if (precioMin != null) {
             sql.append("AND h.precio_noche >= ? ");
-            params.add(Double.parseDouble(precioMin));
+            parameters.add(Double.parseDouble(precioMin));
         }
+
         if (precioMax != null) {
             sql.append("AND h.precio_noche <= ? ");
-            params.add(Double.parseDouble(precioMax));
+            parameters.add(Double.parseDouble(precioMax));
         }
+
         if (capacidad != null) {
             sql.append("AND h.capacidad >= ? ");
-            params.add(Integer.parseInt(capacidad));
+            parameters.add(Integer.parseInt(capacidad));
         }
+
+        if (verificada != null) {
+            boolean verificado = Boolean.parseBoolean(verificada);
+            sql.append("AND h.verificada = ? ");
+            parameters.add(verificado);
+        }
+
         if (servicios != null && !servicios.isEmpty()) {
             String[] serviciosArray = servicios.split(",");
             sql.append("AND hs.servicio_id IN (");
             sql.append("?,".repeat(serviciosArray.length));
             sql.setLength(sql.length() - 1); // Remove last comma
             sql.append(") ");
+
             for (String servicio : serviciosArray) {
-                params.add(Integer.parseInt(servicio));
+                parameters.add(Integer.parseInt(servicio));
             }
         }
 
         try (Connection connection = DatabaseConnection.getInstance().getConnection()) {
             PreparedStatement stmt = connection.prepareStatement(sql.toString());
 
-            for (int i = 0; i < params.size(); i++) {
-                stmt.setObject(i + 1, params.get(i));
+            for (int i = 0; i < parameters.size(); i++) {
+                stmt.setObject(i + 1, parameters.get(i));
             }
 
             ResultSet rs = stmt.executeQuery();

@@ -1,4 +1,4 @@
-package com.microservices.daos;
+package com.microservices.dao;
 
 import com.microservices.config.DatabaseConnection;
 import com.microservices.models.Servicio;
