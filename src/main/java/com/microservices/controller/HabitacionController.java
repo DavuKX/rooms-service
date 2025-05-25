@@ -5,6 +5,10 @@ import com.microservices.dto.HabitacionDTO;
 import com.microservices.models.Habitacion;
 import com.microservices.repository.HabitacionRepository;
 import com.microservices.service.HabitacionService;
+import com.microservices.strategy.GetAllHandlerStrategy;
+import com.microservices.strategy.GetByIdHandlerStrategy;
+import com.microservices.strategy.IRequestHandlerStrategy;
+import com.microservices.strategy.SearchHandlerStrategy;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -12,18 +16,25 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 @WebServlet("/api/rooms/*")
 public class HabitacionController extends HttpServlet {
     private ObjectMapper mapper;
     private HabitacionService service;
+    private final List<IRequestHandlerStrategy> handlers = new ArrayList<>();
 
     @Override
     public void init() throws ServletException {
         mapper = new ObjectMapper();
         HabitacionRepository repository = new HabitacionRepository();
         service = new HabitacionService(repository);
+
+        handlers.add(new GetAllHandlerStrategy(service, mapper));
+        handlers.add(new GetByIdHandlerStrategy(service, mapper));
+        handlers.add(new SearchHandlerStrategy(service, mapper));
     }
 
     private void setCorsHeaders(HttpServletResponse resp) {
@@ -62,19 +73,10 @@ public class HabitacionController extends HttpServlet {
         try {
             resp.setContentType("application/json");
 
-            if (pathInfo == null || pathInfo.equals("/")) {
-                mapper.writeValue(resp.getWriter(), service.getAll());
-            } else if (pathInfo.startsWith("/search")) {
-                mapper.writeValue(resp.getWriter(), service.search(req.getParameterMap()));
-            } else {
-                int id = Integer.parseInt(pathInfo.substring(1));
-                HabitacionDTO dto = service.getHabitacionById(id);
-
-                if (dto != null) {
-                    mapper.writeValue(resp.getWriter(), dto);
-                } else {
-                    resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                    resp.getWriter().write("{\"error\": \"Habitación no encontrada\"}");
+            for (IRequestHandlerStrategy handler : handlers) {
+                if (handler.canHandle(pathInfo)) {
+                    handler.handle(req, resp);
+                    return;
                 }
             }
         } catch (Exception e) {
