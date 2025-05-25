@@ -1,14 +1,14 @@
 package com.microservices.dao;
 
 import com.microservices.config.DatabaseConnection;
+import com.microservices.dao.builder.HabitacionQueryBuilder;
+import com.microservices.mapper.HabitacionMapper;
 import com.microservices.models.Habitacion;
-import jakarta.servlet.http.HttpServletRequest;
 
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 public class HabitacionDAO {
     private final ServicioDAO servicioDAO;
@@ -69,7 +69,7 @@ public class HabitacionDAO {
 
             List<Habitacion> habitaciones = new ArrayList<>();
             while (rs.next()) {
-                Habitacion habitacion = mapHabitacion(rs);
+                Habitacion habitacion = HabitacionMapper.fromResultSet(rs);
                 habitacion.setServicios(servicioDAO.obtenerServiciosPorIdHabitacion(habitacion.getId()));
                 habitacion.setImagenes(imagenDAO.obtenerImagenesPorHabitacion(habitacion.getId()));
                 habitaciones.add(habitacion);
@@ -85,7 +85,7 @@ public class HabitacionDAO {
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                Habitacion habitacion = mapHabitacion(rs);
+                Habitacion habitacion = HabitacionMapper.fromResultSet(rs);
                 habitacion.setServicios(servicioDAO.obtenerServiciosPorIdHabitacion(habitacion.getId()));
                 habitacion.setImagenes(imagenDAO.obtenerImagenesPorHabitacion(habitacion.getId()));
                 return habitacion;
@@ -95,57 +95,12 @@ public class HabitacionDAO {
     }
 
     public List<Habitacion> search(Map<String, String[]> params) throws SQLException, ClassNotFoundException {
-        String ciudad = params.get("ciudad") != null ? params.get("ciudad")[0] : null;
-        String precioMin = params.get("precioMin") != null ? params.get("precioMin")[0] : null;
-        String precioMax = params.get("precioMax") != null ? params.get("precioMax")[0] : null;
-        String capacidad = params.get("capacidad") != null ? params.get("capacidad")[0] : null;
-        String servicios = params.get("servicios") != null ? params.get("servicios")[0] : null;
-        String verificada = params.get("verificada") != null ? params.get("verificada")[0] : null;
+        HabitacionQueryBuilder builder = HabitacionQueryBuilder.fromParams(params);
 
-        StringBuilder sql = new StringBuilder("SELECT DISTINCT h.* FROM habitacion h LEFT JOIN habitacion_servicios hs ON h.id = hs.habitacion_id WHERE 1=1 ");
-        List<Object> parameters = new ArrayList<>();
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement stmt = connection.prepareStatement(builder.getQuery())) {
 
-        if (ciudad != null) {
-            sql.append("AND h.ciudad = ? ");
-            parameters.add(ciudad);
-        }
-
-        if (precioMin != null) {
-            sql.append("AND h.precio_noche >= ? ");
-            parameters.add(Double.parseDouble(precioMin));
-        }
-
-        if (precioMax != null) {
-            sql.append("AND h.precio_noche <= ? ");
-            parameters.add(Double.parseDouble(precioMax));
-        }
-
-        if (capacidad != null) {
-            sql.append("AND h.capacidad >= ? ");
-            parameters.add(Integer.parseInt(capacidad));
-        }
-
-        if (verificada != null) {
-            boolean verificado = Boolean.parseBoolean(verificada);
-            sql.append("AND h.verificada = ? ");
-            parameters.add(verificado);
-        }
-
-        if (servicios != null && !servicios.isEmpty()) {
-            String[] serviciosArray = servicios.split(",");
-            sql.append("AND hs.servicio_id IN (");
-            sql.append("?,".repeat(serviciosArray.length));
-            sql.setLength(sql.length() - 1); // Remove last comma
-            sql.append(") ");
-
-            for (String servicio : serviciosArray) {
-                parameters.add(Integer.parseInt(servicio));
-            }
-        }
-
-        try (Connection connection = DatabaseConnection.getInstance().getConnection()) {
-            PreparedStatement stmt = connection.prepareStatement(sql.toString());
-
+            List<Object> parameters = builder.getParameters();
             for (int i = 0; i < parameters.size(); i++) {
                 stmt.setObject(i + 1, parameters.get(i));
             }
@@ -153,26 +108,13 @@ public class HabitacionDAO {
             ResultSet rs = stmt.executeQuery();
             List<Habitacion> habitaciones = new ArrayList<>();
             while (rs.next()) {
-                Habitacion habitacion = mapHabitacion(rs);
+                Habitacion habitacion = HabitacionMapper.fromResultSet(rs);
                 habitacion.setServicios(servicioDAO.obtenerServiciosPorIdHabitacion(habitacion.getId()));
                 habitacion.setImagenes(imagenDAO.obtenerImagenesPorHabitacion(habitacion.getId()));
                 habitaciones.add(habitacion);
             }
             return habitaciones;
         }
-    }
-
-    private Habitacion mapHabitacion(ResultSet rs) throws SQLException {
-        Habitacion habitacion = new Habitacion();
-        habitacion.setId(rs.getInt("id"));
-        habitacion.setCiudad(rs.getString("ciudad"));
-        habitacion.setDireccion(rs.getString("direccion"));
-        habitacion.setCapacidad(rs.getInt("capacidad"));
-        habitacion.setPrecioNoche(rs.getDouble("precio_noche"));
-        habitacion.setDescripcion(rs.getString("descripcion"));
-        habitacion.setPropietarioId(rs.getInt("propietario_id"));
-        habitacion.setVerificada(rs.getBoolean("verificada"));
-        return habitacion;
     }
 
     public boolean update(Habitacion habitacion) throws SQLException, ClassNotFoundException {

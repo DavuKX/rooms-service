@@ -21,4 +21,4 @@ docker compose build
 echo -e "${GREEN}Step 4: Starting containers...${NC}"
 docker compose up -d
 
-echo -e "${GREEN}✅ Done. The application is now running at http://localhost:8081${NC}"
+echo -e "${GREEN}✅ Done. The application is now running at http://localhost:8083${NC}"
